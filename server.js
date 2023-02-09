@@ -13,48 +13,9 @@ app.use((req, res, next)=> {
   next();
 });
 
-app.get('/', async(req, res, next)=> {
-  try {
-    const response = await client.query(`
-      SELECT id, name
-      FROM things
-    `);
-    const things = response.rows;
-
-    res.send(`
-    <html>
-      <head>
-        <title>The Acme Things</title>
-        <link rel='stylesheet' href='/public/styles.css' />
-      </head>
-      <body>
-        <h1>The Acme Things</h1>
-        <a href='/things/add'>Add Thing</a>
-        <ul>
-          ${
-            things.map( thing => {
-              return `
-                <li>
-                  <a href='/things/${thing.id}'>${ thing.name }</a>
-                </li>
-              `;
-            }).join('')
-          }
-        </ul>
-      </body>
-    </html>
-    `);
-  }
-  catch(ex){
-    console.log(ex);
-    next(ex);
-  }
-});
+app.get('/', (req, res)=> res.redirect('/things'));
 
 app.use('/things', require('./routers/things'));
-
-
-
 
 const port = process.env.PORT || 3000;
 
@@ -64,14 +25,31 @@ app.listen(port, async()=> {
     await client.connect();
     const SQL = `
     DROP TABLE IF EXISTS things;
+    DROP TABLE IF EXISTS users;
+    CREATE TABLE users(
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) UNIQUE
+    );
     CREATE TABLE things(
       id SERIAL PRIMARY KEY,
       name VARCHAR(100) UNIQUE,
-      description TEXT
+      description TEXT,
+      "userId" INTEGER REFERENCES users(id)
     );
+    INSERT INTO users(name) VALUES ('moe');
+    INSERT INTO users(name) VALUES ('larry');
+    INSERT INTO users(name) VALUES ('lucy');
     INSERT INTO things(name, description) VALUES('foo', 'FOO!!');
-    INSERT INTO things(name, description) VALUES('bar', 'BAR!!');
-    INSERT INTO things(name, description) VALUES('bazz', 'BAZZ!!');
+    INSERT INTO things(name, description, "userId") VALUES('bar', 'BAR!!', (
+      SELECT id
+      FROM users
+      WHERE name = 'lucy'
+    ));
+    INSERT INTO things(name, description, "userId") VALUES('bazz', 'BAZZ!!', (
+      SELECT id
+      FROM users
+      WHERE name = 'lucy'
+    ));
     `;
     await client.query(SQL);
   }
