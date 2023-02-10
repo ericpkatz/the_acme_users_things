@@ -76,6 +76,27 @@ app.post('/', async(req, res, next)=> {
 
 });
 
+app.put('/:id', async(req, res, next)=> {
+  try{
+    const SQL = `
+    UPDATE things
+    SET name = $1, description = $2, "userId" = $3
+    WHERE id = $4
+    `;
+    const response = await client.query(SQL, [
+      req.body.name,
+      req.body.description,
+      req.body.userId || null,
+      req.params.id
+    ]);
+    res.redirect(`/things/${req.params.id}`);
+  }
+  catch(ex){
+    next(ex);
+  }
+
+});
+
 app.get('/add', async(req, res, next)=> {
   try {
     const users = (await client.query('SELECT * FROM users')).rows;
@@ -112,6 +133,50 @@ app.get('/add', async(req, res, next)=> {
   }
 });
 
+app.get('/:id/edit', async(req, res, next)=> {
+  try {
+    const users = (await client.query('SELECT * FROM users')).rows;
+    const response = await client.query(`
+      SELECT things.*, users.name as "userName" 
+      FROM things
+      LEFT JOIN users
+      ON things."userId" = users.id
+      WHERE things.id = $1
+    `, [ req.params.id ]);
+    const thing = response.rows[0];
+      res.send(`
+      <html>
+        <head>
+          <title>The Acme Things</title>
+          <link rel='stylesheet' href='/public/styles.css' />
+        </head>
+        <body>
+          <h1>The Acme Things</h1>
+          <a href='/'>Show All Things</a>
+          <form method='POST' action='/things/${thing.id}?method=put' >
+            <input value='${ thing.name }' name='name' placeholder='insert name' />
+            <input value='${ thing.description }' name='description' placeholder='insert desc.' />
+            <select name='userId'>
+              <option value=''>-- choose a user -- </option>
+              ${
+                users.map( user => {
+                  return `
+                    <option ${ user.id === thing.userId ? 'selected' : ''} value='${ user.id }'>${ user.name }</option>
+                  `;
+                }).join('')
+              }
+            </select>
+            <button>Update</button>
+          </form>
+        </body>
+      </html>
+      `);
+  }
+  catch(ex){
+    next(ex);
+  }
+});
+
 app.get('/:id', async(req, res, next)=> {
   try {
     const response = await client.query(`
@@ -138,6 +203,7 @@ app.get('/:id', async(req, res, next)=> {
         </p>
         owned by ${ thing.userName || 'nobody' }
         <a href='/things/${thing.id}?method=delete'>Delete</a>
+        <a href='/things/${thing.id}/edit'>Edit</a>
       </body>
     </html>
     `);

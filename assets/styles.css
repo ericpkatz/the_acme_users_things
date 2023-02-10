@@ -10,3 +10,8 @@ form {
 form > * {
   margin: 1rem;
 }
+
+input,button,select {
+  height: 2rem;
+  font-size: 1.5rem;
+}
